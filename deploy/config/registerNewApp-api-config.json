@@ -1,0 +1,8 @@
+{
+    "caproverName": "captain",
+    "path": "/user/apps/appDefinitions/register",
+    "method": "POST",
+    "data": {
+        "appName": "@@APP_NAME@@"
+    }
+}

@@ -1,0 +1,8 @@
+{
+    "caproverName": "captain",
+    "path": "/user/apps/appDefinitions/delete",
+    "method": "POST",
+    "data": {
+        "appName": "@@APP_NAME@@"
+    }
+}

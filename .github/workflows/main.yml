@@ -1,0 +1,67 @@
+name: CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  pull_request:
+    branches:
+    - master
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    env:
+      # Modify this with your captain domain
+      CAPTAIN_DOMAIN: km.lanland.club/
+      CAPTAIN_DASHBOARD_SUBDOMAIN: captain
+      PROJECT_NAME: school-after
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Set environment variables
+      - name: Set environment variables
+        run: |
+          echo "CAPTAIN_DASHBOARD_DOMAIN=https://${CAPTAIN_DASHBOARD_SUBDOMAIN}.${CAPTAIN_DOMAIN}" >> $GITHUB_ENV
+          echo "REVIEW_APP_SLUG=${PROJECT_NAME}-reviewapp-${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          echo "REVIEW_APP_URL=http://${PROJECT_NAME}-reviewapp-${GITHUB_RUN_ID}.${CAPTAIN_DOMAIN}" >> $GITHUB_ENV
+      # Install node dependencies
+      - name: Install node modules
+        run: npm i
+      # Configure APP settings
+      - name: Configure Review App payloads
+        run: |
+          sed -i "s|@@CAPROVER_URL@@|${CAPTAIN_DASHBOARD_DOMAIN}|" ./deploy/config/captain-login.json
+          sed -i "s|@@APP_NAME@@|${REVIEW_APP_SLUG}|" ./deploy/config/registerNewApp-api-config.json
+          sed -i "s|@@APP_NAME@@|${REVIEW_APP_SLUG}|" ./deploy/config/deleteApp-api-config.json
+      # Deploy App using caprover
+      - name: Deploy Review App
+        run: |
+          node ./node_modules/caprover/built/commands/caprover.js login -c ./deploy/config/captain-login.json
+          node ./node_modules/caprover/built/commands/caprover.js api -c ./deploy/config/registerNewApp-api-config.json 
+          node ./node_modules/caprover/built/commands/caprover.js deploy -n captain -a ${REVIEW_APP_SLUG} -b HEAD
+      # Wait until Review App is deployed asking for a 404 status for 40 seconds (retrying every half a second)
+      - uses: nev7n/wait_for_response@v1
+        name: Waiting until Review App is deployed
+        with:
+          url: ${{env.REVIEW_APP_URL}}
+          responseCode: 404
+          timeout: 40000
+          interval: 500
+      # Show Review App URL
+      - name: Deploy finished
+        run: echo "Deploy finished, you can find reviewapp at ${REVIEW_APP_URL}"
+      # Perform e2e testing
+      - name: E2E Testing
+        run: npm run e2e-tests -- --baseurl ${REVIEW_APP_URL}
+      # Remove Review App instance to prevent review app stacking
+      - name: Remove Review App instance
+        run: |
+          node ./node_modules/caprover/built/commands/caprover.js api -c ./deploy/config/deleteApp-api-config.json
