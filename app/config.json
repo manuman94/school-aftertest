@@ -1,0 +1,14 @@
+{
+    "database": {
+        "username": "root",
+        "password": "RootPassword",
+        "database": "school",
+        "host": "srv-captain--school-mysql-db-db",
+        "port": 3306,
+        "logging": true,
+        "dialect": "mysql",
+        "sync": {
+            "force": true
+        }
+    }
+}
